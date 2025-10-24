@@ -814,6 +814,9 @@ local function useSlot(slot, noAnim)
 
                     AddAmmoToPed(playerPed, currentWeapon.hash, addAmmo)
 
+                    -- Trigger HUD update for ammo
+                    TriggerEvent("Hud:Client:Ammo", "Equip")
+
                     if cache.vehicle then
                         if cache.seat > -1 or IsVehicleStopped(cache.vehicle) then
                             TaskReloadWeapon(playerPed, true)
