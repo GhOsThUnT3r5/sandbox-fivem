@@ -1164,17 +1164,15 @@ function GenerateLocalVehicleInfo(entity)
     local entityType = GetEntityType(entity)
     local populationType = GetEntityPopulationType(entity)
 
-    if entityType == 2 and (populationType == 2 or populationType == 3 or populationType == 5) then
-        local veh = Entity(entity)
-        if not veh.state.VIN then -- Has Not Yet Been Detected/Initialised
-            veh.state.VIN = exports['sandbox-vehicles']:VINGenerateLocal()
-            veh.state.Owned = false
-            veh.state.Hotwired = false
-            veh.state.HotwiredSuccess = false
-            veh.state.PlayerDriven = false
-            veh.state.Fuel = math.random(30, 100)
-            veh.state.Mileage = math.random(1, 100) * 100
-        end
+    local veh = Entity(entity)
+    if not veh.state.VIN then -- Has Not Yet Been Detected/Initialised
+        veh.state.VIN = exports['sandbox-vehicles']:VINGenerateLocal()
+        veh.state.Owned = false
+        veh.state.Hotwired = false
+        veh.state.HotwiredSuccess = false
+        veh.state.PlayerDriven = false
+        veh.state.Fuel = math.random(30, 100)
+        veh.state.Mileage = math.random(1, 100) * 100
     end
 end
 

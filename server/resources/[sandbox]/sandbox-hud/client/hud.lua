@@ -76,25 +76,25 @@ AddEventHandler('onClientResourceStart', function(resource)
 			data = { position = GetMinimapAnchor() },
 		})
 
-		exports["sandbox-keybinds"]:Add("show_interaction", "F1", "keyboard", "Hud - Show Interaction Menu", function()
+		exports["sandbox-kbs"]:Add("show_interaction", "F1", "keyboard", "Hud - Show Interaction Menu", function()
 			if not IsPauseMenuActive() then
 				exports['sandbox-hud']:InteractionShow()
 			end
 		end)
 
-		-- exports["sandbox-keybinds"]:Add("map_zoom_in", "PageUp", "keyboard", "Minimap - Zoom In", function()
+		-- exports["sandbox-kbs"]:Add("map_zoom_in", "PageUp", "keyboard", "Minimap - Zoom In", function()
 		-- 	Hud.Minimap:In()
 		-- end)
 
-		-- exports["sandbox-keybinds"]:Add("map_zoom_out", "PageDown", "keyboard", "Minimap - Zoom Out", function()
+		-- exports["sandbox-kbs"]:Add("map_zoom_out", "PageDown", "keyboard", "Minimap - Zoom Out", function()
 		-- 	Hud.Minimap:Out()
 		-- end)
 
-		exports["sandbox-keybinds"]:Add("ui_toggle", "F11", "keyboard", "Hud - Toggle HUD", function()
+		exports["sandbox-kbs"]:Add("ui_toggle", "F11", "keyboard", "Hud - Toggle HUD", function()
 			exports['sandbox-hud']:Toggle()
 		end)
 
-		exports["sandbox-keybinds"]:Add("ids_toggle", "u", "keyboard", "Hud - Toggle IDs", function()
+		exports["sandbox-kbs"]:Add("ids_toggle", "u", "keyboard", "Hud - Toggle IDs", function()
 			if not _idsCd then
 				exports['sandbox-hud']:IDToggle()
 			end
@@ -435,8 +435,8 @@ exports("DeathTextsShow", function(type, deathTime, timer, keyOverride)
 	SendNUIMessage({
 		type = "DO_DEATH_TEXT",
 		data = {
-			key = exports["sandbox-keybinds"]:GetKey(keyOverride or "secondary_action") or 'Unknown',
-			f1Key = exports["sandbox-keybinds"]:GetKey(keyOverride or "show_interaction") or 'Unknown',
+			key = exports["sandbox-kbs"]:GetKey(keyOverride or "secondary_action") or 'Unknown',
+			f1Key = exports["sandbox-kbs"]:GetKey(keyOverride or "show_interaction") or 'Unknown',
 			type = type,
 			deathTime = deathTime,
 			timer = timer,

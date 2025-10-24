@@ -110,7 +110,7 @@ RegisterNUICallback('getSettings', function(data, cb)
 end)
 
 RegisterNUICallback('getPhoneKey', function(data, cb)
-    local phoneKey = exports["sandbox-keybinds"]:GetKey("phone_toggle")
+    local phoneKey = exports["sandbox-kbs"]:GetKey("phone_toggle")
     cb(phoneKey or "M")
 end)
 

@@ -157,7 +157,7 @@ AddEventHandler("Drugs:Server:Startup", function()
         coords = vector3(755.504, -1860.620, 48.292),
         heading = 307.963,
         scenario = "WORLD_HUMAN_SMOKING"
-    }, _toolsForSale, "fa-solid fa-jar", "View Offers", false, false, true)
+    }, _toolsForSale, "fas fa-jar", "View Offers", false, false, true)
 
     local stills = MySQL.query.await('SELECT * FROM placed_moonshine_stills WHERE expires > ?', { os.time() })
     for k, v in ipairs(stills) do

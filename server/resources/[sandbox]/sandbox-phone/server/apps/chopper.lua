@@ -25,7 +25,7 @@ AddEventHandler("Phone:Server:RegisterCallbacks", function()
 		coords = vector3(-623.589, -1681.736, 19.101),
 		heading = 228.222,
 		scenario = "WORLD_HUMAN_TOURIST_MOBILE",
-	}, marketItems, "fa-solid fa-money-bill", "View Offers", false, false, true)
+	}, marketItems, "fas fa-money-bill", "View Offers", false, false, true)
 end)
 
 function RegisterItems()
