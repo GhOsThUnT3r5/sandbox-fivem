@@ -25,7 +25,7 @@ AddEventHandler('onClientResourceStart', function(resource)
 
 		TriggerEvent("Vehicles:Client:StartUp")
 
-		exports["sandbox-keybinds"]:Add("toggle_engine", "IOM_WHEEL_UP", "MOUSE_WHEEL", "Vehicle - Toggle Engine",
+		exports["sandbox-kbs"]:Add("toggle_engine", "IOM_WHEEL_UP", "MOUSE_WHEEL", "Vehicle - Toggle Engine",
 			function()
 				if VEHICLE_INSIDE and VEHICLE_SEAT == -1 then
 					if IsPauseMenuActive() ~= 1 then

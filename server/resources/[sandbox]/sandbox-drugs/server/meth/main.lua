@@ -122,7 +122,7 @@ AddEventHandler("Drugs:Server:Startup", function()
             coords = vector3(mPos.x, mPos.y, mPos.z),
             heading = mPos.w,
             scenario = "WORLD_HUMAN_CHEERING"
-        }, _toolsForSale, "fa-solid fa-money-bill", "View Offers", false, false, true, 60 * math.random(30, 60),
+        }, _toolsForSale, "fas fa-money-bill", "View Offers", false, false, true, 60 * math.random(30, 60),
         60 * math.random(300, 480))
 
     local tables = MySQL.query.await('SELECT * FROM placed_meth_tables WHERE expires > ?', { os.time() })

@@ -5,7 +5,7 @@ function CreateGovermentFleetShops()
                 v.interactionPed.coords,
                 v.interactionPed.heading, v.interactionPed.range, {
                     {
-                        icon = 'fa-solid fa-warehouse',
+                        icon = 'fas fa-warehouse',
                         text = 'Purchase Fleet Vehicles',
                         groups = { v.job },
                         permissionKey = v.requiredPermission,

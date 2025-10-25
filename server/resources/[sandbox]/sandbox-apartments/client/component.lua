@@ -145,7 +145,7 @@ RegisterNetEvent("Apartment:Client:InnerStuff", function(aptId, unit, wakeUp)
 			{
 				name = "apt_exit",
 				label = "Exit",
-				icon = "fa-solid fa-door-open",
+				icon = "fas fa-door-open",
 				onSelect = function()
 					TriggerEvent("Apartment:Client:ExitEvent", unit)
 				end,
@@ -166,7 +166,7 @@ RegisterNetEvent("Apartment:Client:InnerStuff", function(aptId, unit, wakeUp)
 			{
 				name = "apt_logout",
 				label = "Switch Characters",
-				icon = "fa-solid fa-bed",
+				icon = "fas fa-bed",
 				onSelect = function()
 					TriggerEvent("Apartment:Client:Logout", unit)
 				end,
@@ -190,7 +190,7 @@ RegisterNetEvent("Apartment:Client:InnerStuff", function(aptId, unit, wakeUp)
 			{
 				name = "apt_wardrobe",
 				label = "Wardrobe",
-				icon = "fa-solid fa-shirt",
+				icon = "fas fa-shirt",
 				onSelect = function()
 					TriggerEvent("Apartment:Client:Wardrobe", unit)
 				end,
@@ -214,7 +214,7 @@ RegisterNetEvent("Apartment:Client:InnerStuff", function(aptId, unit, wakeUp)
 			{
 				name = "apt_stash",
 				label = "Stash",
-				icon = "fa-solid fa-box",
+				icon = "fas fa-box",
 				onSelect = function()
 					TriggerEvent("Apartment:Client:Stash", aptId)
 				end,

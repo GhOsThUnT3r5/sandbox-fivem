@@ -80,7 +80,7 @@ AddEventHandler("Robbery:Client:Setup", function()
 		exports.ox_target:addModel(v.model, {
 			{
 				label = string.format("Steal %s", v.label),
-				icon = "fa-solid fa-arrows-to-eye",
+				icon = "fas fa-arrows-to-eye",
 				onSelect = function(data)
 					TriggerEvent("Robbery:Client:Signs:StealSign", {
 						label = v.label,

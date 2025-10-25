@@ -331,7 +331,7 @@ local function startTargeting()
                 if currentMenu and options.__global[1]?.name ~= 'builtin:goback' then
                     table.insert(options.__global, 1,
                         {
-                            icon = 'fa-solid fa-circle-chevron-left',
+                            icon = 'fas fa-circle-chevron-left',
                             label = locale('go_back'),
                             name = 'builtin:goback',
                             menuName = currentMenu,
