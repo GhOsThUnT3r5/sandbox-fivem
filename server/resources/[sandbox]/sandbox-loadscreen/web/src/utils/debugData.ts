@@ -1,8 +1,10 @@
 import { isEnvBrowser } from "./misc";
 
 interface DebugEvent<T = unknown> {
-  action: string;
-  data: T;
+  action?: string;
+  data?: T;
+  eventName?: string;
+  [key: string]: unknown;
 }
 
 /**
@@ -16,13 +18,17 @@ export const debugData = <P>(events: DebugEvent<P>[], timer = 1000): void => {
   if (import.meta.env.MODE === "development" && isEnvBrowser()) {
     for (const event of events) {
       setTimeout(() => {
-        window.dispatchEvent(
-          new MessageEvent("message", {
-            data: {
+        const eventData = event.eventName
+          ? event
+          : {
               action: event.action,
               data: event.data,
-            },
-          }),
+            };
+
+        window.dispatchEvent(
+          new MessageEvent("message", {
+            data: eventData,
+          })
         );
       }, timer);
     }
