@@ -334,6 +334,7 @@ function RegisterStatuses()
 		id = 7,
 		hideZero = true,
 		order = 8,
+		noReset = true,
 	})
 end
 
