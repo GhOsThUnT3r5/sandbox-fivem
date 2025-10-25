@@ -4161,7 +4161,7 @@ _fleetConfig = {
 		},
 		vehicles = {
 			{
-				vehicle = `nspeedo`,
+				vehicle = `speedo`,
 				type = 0,
 				modelType = "automobile",
 				make = "Vapid",
@@ -4279,7 +4279,7 @@ _fleetConfig = {
 		},
 		vehicles = {
 			{
-				vehicle = `nspeedo`,
+				vehicle = `speedo`,
 				type = 0,
 				modelType = "automobile",
 				make = "Vapid",

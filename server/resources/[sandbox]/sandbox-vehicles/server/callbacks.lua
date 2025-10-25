@@ -74,9 +74,28 @@ function RegisterCallbacks()
             end
 
             local characterId = character:GetData('SID')
-            exports['sandbox-vehicles']:OwnedGetAll(storageData.vehType, 0, characterId, function(vehicles)
-                cb(vehicles)
-            end, 1, storageId, true, fleetFetch, {
+            local allVehicles = {}
+            local vehiclesProcessed = 0
+            local totalQueries = 1
+            
+            -- Determine total queries up front
+            if fleetFetch and fleetFetch.Id then
+                totalQueries = 2
+            end
+
+            -- Query for personal vehicles
+            exports['sandbox-vehicles']:OwnedGetAll(storageData.vehType, 0, characterId, function(personalVehicles)
+                if personalVehicles then
+                    for k, v in ipairs(personalVehicles) do
+                        table.insert(allVehicles, v)
+                    end
+                end
+                
+                vehiclesProcessed = vehiclesProcessed + 1
+                if vehiclesProcessed >= totalQueries then
+                    cb(allVehicles)
+                end
+            end, 1, storageId, true, false, {
                 _id = 0,
                 VIN = 1,
                 Make = 1,
@@ -86,6 +105,31 @@ function RegisterCallbacks()
                 RegisteredPlate = 1,
                 GovAssigned = 1,
             })
+
+            -- Query for fleet vehicles if player has fleet access
+            if fleetFetch and fleetFetch.Id then
+                exports['sandbox-vehicles']:OwnedGetAll(storageData.vehType, false, false, function(fleetVehicles)
+                    if fleetVehicles then
+                        for k, v in ipairs(fleetVehicles) do
+                            table.insert(allVehicles, v)
+                        end
+                    end
+                    
+                    vehiclesProcessed = vehiclesProcessed + 1
+                    if vehiclesProcessed >= totalQueries then
+                        cb(allVehicles)
+                    end
+                end, 1, storageId, true, fleetFetch, {
+                    _id = 0,
+                    VIN = 1,
+                    Make = 1,
+                    Model = 1,
+                    Type = 1,
+                    Owner = 1,
+                    RegisteredPlate = 1,
+                    GovAssigned = 1,
+                })
+            end
         else
             cb(false)
         end
@@ -167,7 +211,6 @@ function RegisterCallbacks()
         end
 
         exports['sandbox-vehicles']:OwnedGetVIN(data.VIN, function(vehicle)
-
             if vehicle and vehicle.VIN then
                 local isAuthedForVehicle = false
                 local extraData = {}
@@ -177,7 +220,12 @@ function RegisterCallbacks()
                     local onDuty = Player(source).state.onDuty
 
                     if onDuty and onDuty == vehicle.Owner.Id then
-                        local jobPermissions = exports['sandbox-jobs']:GetPermissionsFromJob(source, vehicle.Owner.Id, vehicle.Owner.Workplace)
+                        -- Convert 0 or false to nil for workplace
+                        local workplace = vehicle.Owner.Workplace
+                        if workplace == 0 or workplace == false then
+                            workplace = nil
+                        end
+                        local jobPermissions = exports['sandbox-jobs']:GetPermissionsFromJob(source, vehicle.Owner.Id, workplace)
                         if jobPermissions then
                             local allowedLevel = GetAllowedFleetVehicleLevelFromJobPermissions(jobPermissions)
                             if (allowedLevel >= vehicle.Owner.Level) then
@@ -207,6 +255,8 @@ function RegisterCallbacks()
                 else
                     cb(false)
                 end
+            else
+                cb(false)
             end
         end)
     end)
@@ -243,7 +293,12 @@ function RegisterCallbacks()
                 local onDuty = Player(source).state.onDuty
 
                 if onDuty and onDuty == vehicleOwner.Id then
-                    local jobPermissions = exports['sandbox-jobs']:GetPermissionsFromJob(source, vehicleOwner.Id, vehicleOwner.Workplace)
+                    -- Convert 0 or false to nil for workplace
+                    local workplace = vehicleOwner.Workplace
+                    if workplace == 0 or workplace == false then
+                        workplace = nil
+                    end
+                    local jobPermissions = exports['sandbox-jobs']:GetPermissionsFromJob(source, vehicleOwner.Id, workplace)
                     if jobPermissions then
                         local allowedLevel = GetAllowedFleetVehicleLevelFromJobPermissions(jobPermissions)
                         if (allowedLevel >= vehicleOwner.Level) then

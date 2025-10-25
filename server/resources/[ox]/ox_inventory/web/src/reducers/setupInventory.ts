@@ -7,29 +7,35 @@ export const setupInventoryReducer: CaseReducer<
   State,
   PayloadAction<{
     leftInventory?: Inventory;
+    containerInventory?: Inventory;
     rightInventory?: Inventory;
   }>
 > = (state, action) => {
-  const { leftInventory, rightInventory } = action.payload;
+  const { leftInventory, containerInventory, rightInventory } = action.payload;
   const curTime = Math.floor(Date.now() / 1000);
 
-  if (
-    leftInventory &&
-    rightInventory &&
-    state.leftInventory &&
-    state.rightInventory &&
-    state.leftInventory.id === leftInventory.id &&
-    state.rightInventory.id === rightInventory.id
-  ) {
-    return;
-  }
+  // Allow partial updates (e.g., just updating container)
+  if (!leftInventory && !rightInventory && containerInventory !== undefined) {
+    // This is just a container update, skip the normal checks
+  } else {
+    if (
+      leftInventory &&
+      rightInventory &&
+      state.leftInventory &&
+      state.rightInventory &&
+      state.leftInventory.id === leftInventory.id &&
+      state.rightInventory.id === rightInventory.id
+    ) {
+      return;
+    }
 
-  if (rightInventory && !leftInventory && state.rightInventory && state.rightInventory.id === rightInventory.id) {
-    return;
-  }
+    if (rightInventory && !leftInventory && state.rightInventory && state.rightInventory.id === rightInventory.id) {
+      return;
+    }
 
-  if (leftInventory && !rightInventory && state.leftInventory && state.leftInventory.id === leftInventory.id) {
-    return;
+    if (leftInventory && !rightInventory && state.leftInventory && state.leftInventory.id === leftInventory.id) {
+      return;
+    }
   }
 
   if (leftInventory) {
@@ -213,6 +219,54 @@ export const setupInventoryReducer: CaseReducer<
         ...state.rightInventory,
         ...rightInventory,
         items: cleanedItems,
+      };
+    }
+  }
+
+  if (containerInventory) {
+    const actualSlots = containerInventory.slots;
+    const isNewInventory = !state.containerInventory || state.containerInventory.id !== containerInventory.id;
+
+    if (isNewInventory) {
+      state.containerInventory = {
+        ...containerInventory,
+        slots: actualSlots,
+        items: Array.from(Array(actualSlots), (_, index) => {
+          const slotNumber = index + 1;
+
+          let item;
+          if (Array.isArray(containerInventory.items)) {
+            item = containerInventory.items.find((item) => item && item.slot === slotNumber) || { slot: slotNumber };
+          } else {
+            item = containerInventory.items[slotNumber] || { slot: slotNumber };
+          }
+
+          if (!item.name) return item;
+
+          if (typeof Items[item.name] === 'undefined') {
+            getItemData(item.name);
+          }
+
+          item.durability = itemDurability(item.metadata, curTime);
+          return item;
+        }),
+      };
+    } else {
+      state.containerInventory = {
+        ...state.containerInventory,
+        ...containerInventory,
+        items: state.containerInventory.items,
+      };
+    }
+  } else {
+    // Clear container inventory if not provided or empty
+    if (state.containerInventory && state.containerInventory.id) {
+      state.containerInventory = {
+        id: '',
+        type: '',
+        slots: 0,
+        maxWeight: 0,
+        items: [],
       };
     }
   }

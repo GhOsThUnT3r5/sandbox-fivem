@@ -125,7 +125,7 @@ debugData([
       },
       rightInventory: {
         id: 'shop',
-        type: 'crafting',
+        type: 'shop',
         slots: 5000,
         label: 'AutLaaw Dev',
         weight: 3000,

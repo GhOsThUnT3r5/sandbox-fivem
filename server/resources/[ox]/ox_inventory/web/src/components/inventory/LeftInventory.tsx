@@ -1,10 +1,9 @@
 import React, { useMemo } from 'react';
 import InventorySlot from './InventorySlot';
+import WeightBar from '../utils/WeightBar';
 import { useAppSelector, useAppDispatch } from '../../store';
 import {
   selectLeftInventory,
-  selectItemAmount,
-  setItemAmount,
   selectLeftInventoryCollapsed,
   toggleLeftInventory,
 } from '../../store/inventory';
@@ -14,7 +13,6 @@ import { faChevronUp, faChevronDown } from '@fortawesome/free-solid-svg-icons';
 
 const LeftInventory: React.FC = () => {
   const leftInventory = useAppSelector(selectLeftInventory);
-  const itemAmount = useAppSelector(selectItemAmount);
   const isCollapsed = useAppSelector(selectLeftInventoryCollapsed);
   const dispatch = useAppDispatch();
 
@@ -23,16 +21,15 @@ const LeftInventory: React.FC = () => {
     [leftInventory.maxWeight, leftInventory.items]
   );
 
+  const weightPercentage = useMemo(
+    () => (leftInventory.maxWeight ? (totalWeight / leftInventory.maxWeight) * 100 : 0),
+    [totalWeight, leftInventory.maxWeight]
+  );
+
   const modifiedInventory = {
     ...leftInventory,
     items: leftInventory.items.slice(9),
     slots: Math.max(0, leftInventory.slots),
-  };
-
-  const inputHandler = (event: React.ChangeEvent<HTMLInputElement>) => {
-    event.target.valueAsNumber =
-      isNaN(event.target.valueAsNumber) || event.target.valueAsNumber < 0 ? 0 : Math.floor(event.target.valueAsNumber);
-    dispatch(setItemAmount(event.target.valueAsNumber));
   };
 
   const collapseButton = (
@@ -54,18 +51,11 @@ const LeftInventory: React.FC = () => {
                   kg
                 </p>
               )}
-              <input
-                className="inventory-control-input"
-                type="number"
-                defaultValue={itemAmount}
-                onChange={inputHandler}
-                min={0}
-                placeholder="Qty"
-              />
               {collapseButton}
             </div>
           </div>
         </div>
+        {leftInventory.maxWeight && <WeightBar percent={weightPercentage} />}
       </div>
       <div className={`inventory-grid-container ${isCollapsed ? 'collapsed' : ''}`}>
         {modifiedInventory.items.map((item, index) => (

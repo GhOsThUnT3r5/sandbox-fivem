@@ -32,6 +32,10 @@ const InventorySlot: React.ForwardRefRenderFunction<HTMLDivElement, SlotProps> =
   const timerRef = useRef<number | null>(null);
 
   const canDrag = useCallback(() => {
+    // Allow dragging for shop items (for cart) or if both purchase and craft checks pass
+    if (inventoryType === 'shop') {
+      return isSlotWithItem(item, true);
+    }
     return canPurchaseItem(item, { type: inventoryType, groups: inventoryGroups }) && canCraftItem(item, inventoryType);
   }, [item, inventoryType, inventoryGroups]);
 
@@ -41,17 +45,28 @@ const InventorySlot: React.ForwardRefRenderFunction<HTMLDivElement, SlotProps> =
       collect: (monitor) => ({
         isDragging: monitor.isDragging(),
       }),
-      item: () =>
-        isSlotWithItem(item, inventoryType !== InventoryType.SHOP)
+      item: () => {
+        // Close tooltip when starting to drag
+        dispatch(closeTooltip());
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+        }
+        
+        return isSlotWithItem(item, true)
           ? {
               inventory: inventoryType,
               item: {
                 name: item.name,
                 slot: item.slot,
+                rarity: item.rarity,
+                metadata: item.metadata,
+                count: item.count,
               },
               image: item?.name && `url(${getItemUrl(item) || 'none'}`,
             }
-          : null,
+          : null;
+      },
       canDrag,
     }),
     [inventoryType, item]
@@ -153,9 +168,11 @@ const InventorySlot: React.ForwardRefRenderFunction<HTMLDivElement, SlotProps> =
         <div
           className="item-slot-wrapper"
           onMouseEnter={() => {
-            timerRef.current = window.setTimeout(() => {
-              dispatch(openTooltip({ item, inventoryType }));
-            }, 200) as unknown as number;
+            if (!isDragging) {
+              timerRef.current = window.setTimeout(() => {
+                dispatch(openTooltip({ item, inventoryType }));
+              }, 200) as unknown as number;
+            }
           }}
           onMouseLeave={() => {
             dispatch(closeTooltip());
@@ -188,9 +205,6 @@ const InventorySlot: React.ForwardRefRenderFunction<HTMLDivElement, SlotProps> =
             </div>
           </div>
           <div>
-            {inventoryType !== 'shop' && item?.durability !== undefined && item.durability > 0 && (
-              <WeightBar percent={item.durability} durability />
-            )}
             {inventoryType === 'shop' && item?.price !== undefined && (
               <>
                 {item?.currency !== 'money' && item.currency !== 'black_money' && item.price > 0 && item.currency ? (
@@ -230,6 +244,13 @@ const InventorySlot: React.ForwardRefRenderFunction<HTMLDivElement, SlotProps> =
                 {item.metadata?.label ? item.metadata.label : Items[item.name]?.label || item.name}
               </div>
             </div>
+            {inventoryType !== 'shop' && item?.durability !== undefined && item.durability > 0 && (
+              <WeightBar 
+                percent={item.durability} 
+                durability 
+                rarity={item.metadata?.rarity || item.rarity || Items[item.name]?.rarity || 1}
+              />
+            )}
           </div>
         </div>
       )}

@@ -13,9 +13,9 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 
-DROP DATABASE IF EXISTS `sandbox-framework`;
-CREATE DATABASE IF NOT EXISTS `sandbox-framework` /*!40100 DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci */;
-USE `sandbox-framework`;
+DROP DATABASE IF EXISTS `essence-framework`;
+CREATE DATABASE IF NOT EXISTS `essence-framework` /*!40100 DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci */;
+USE `essence-framework`;
 
 DROP TABLE IF EXISTS `billboards`;
 CREATE TABLE IF NOT EXISTS `billboards` (

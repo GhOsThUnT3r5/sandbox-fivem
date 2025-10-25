@@ -79,7 +79,11 @@ const InventoryHotbar: React.FC = () => {
                   </div>
                   <div>
                     {item?.durability !== undefined && item.durability > 0 && (
-                      <WeightBar percent={item.durability} durability />
+                      <WeightBar 
+                        percent={item.durability} 
+                        durability 
+                        rarity={item.metadata?.rarity || item.rarity || Items[item.name]?.rarity || 1}
+                      />
                     )}
                     <div className="inventory-slot-label-box">
                       <div className="inventory-slot-label-text">

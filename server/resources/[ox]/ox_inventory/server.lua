@@ -5,6 +5,7 @@ require 'modules.crafting.server'
 require 'modules.shops.server'
 require 'modules.pefcl.server'
 require 'modules.slotRestrictions.server'
+require 'modules.backpack.server'
 
 if GetConvar('inventory:versioncheck', 'true') == 'true' then
     lib.versionCheck('communityox/ox_inventory')
@@ -350,14 +351,16 @@ local function openInventory(source, invType, data, ignoreSecurityChecks)
         left:openInventory(left)
     end
 
-    return {
+    local leftData = {
         id = left.id,
         label = left.label,
         type = left.type,
         slots = left.slots,
         weight = left.weight,
         maxWeight = left.maxWeight
-    }, right and {
+    }
+
+    local rightData = right and {
         id = right.id,
         label = right.player and '' or right.label,
         type = right.player and 'otherplayer' or right.type,
@@ -368,6 +371,13 @@ local function openInventory(source, invType, data, ignoreSecurityChecks)
         coords = closestCoords or right.coords,
         distance = right.distance
     }
+
+    -- If container type, return as containerInventory instead of rightInventory
+    if right and right.type == 'container' then
+        return leftData, nil, rightData  -- left, right, container
+    end
+
+    return leftData, rightData
 end
 
 ---@param source number

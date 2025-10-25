@@ -1,6 +1,7 @@
 import React, { RefObject, useRef } from 'react';
 import { DragLayerMonitor, useDragLayer, XYCoord } from 'react-dnd';
 import { DragSource } from '../../typings';
+import { Items } from '../../store/items';
 
 interface DragLayerProps {
   data: DragSource;
@@ -48,6 +49,12 @@ const DragPreview: React.FC = () => {
     isDragging: monitor.isDragging(),
   }));
 
+  const getRarityClass = () => {
+    if (!data?.item) return '';
+    const rarity = data.item.metadata?.rarity || data.item.rarity || Items[data.item.name]?.rarity;
+    return rarity ? `rarity-${rarity}` : '';
+  };
+
   return (
     <>
       {isDragging && currentOffset && data.item && (
@@ -56,9 +63,23 @@ const DragPreview: React.FC = () => {
           ref={element}
           style={{
             transform: `translate(${currentOffset.x}px, ${currentOffset.y}px)`,
-            backgroundImage: data.image,
           }}
-        />
+        >
+          <div 
+            className={`item-drag-preview-container ${getRarityClass()}`}
+            style={{
+              backgroundImage: data.image,
+            }}
+          />
+          <div className="item-drag-preview-label">
+            {data.item.metadata?.label ? data.item.metadata.label : Items[data.item.name]?.label || data.item.name}
+          </div>
+          {data.item.count && data.item.count > 1 && (
+            <div className="item-drag-preview-count">
+              {data.item.count}
+            </div>
+          )}
+        </div>
       )}
     </>
   );

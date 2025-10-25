@@ -287,6 +287,16 @@ RegisterNetEvent('ox_inventory:ready', function()
 	end
 end)
 
+-- Also try to register on resource start in case ox_inventory is already ready
+AddEventHandler('onResourceStart', function(resourceName)
+	if resourceName == GetCurrentResourceName() then
+		Wait(2000) -- Wait for ox_inventory to be ready
+		if GetResourceState('ox_inventory') == 'started' then
+			RegisterItemUses()
+		end
+	end
+end)
+
 local polishTypes = {
 	{                          -- Normal Polish
 		length = (60 * 60 * 24 * 7), -- Lasts for a week

@@ -6,6 +6,7 @@ require 'modules.interface.client'
 local Utils = require 'modules.utils.client'
 local Weapon = require 'modules.weapon.client'
 local SlotRestrictions = require 'modules.slotRestrictions.client'
+local Backpack = require 'modules.backpack.client'
 local currentWeapon
 
 exports('getCurrentWeapon', function()
@@ -213,6 +214,7 @@ function client.openInventory(inv, data)
         end
 
         if IsNuiFocused() then
+            -- For containers, just close if clicking the same container
             if inv == 'container' and currentInventory.id == PlayerData.inventory[data].metadata.container then
                 return client.closeInventory()
             end
@@ -221,13 +223,15 @@ function client.openInventory(inv, data)
                 return client.closeInventory()
             end
 
+            -- Allow opening other inventories while container is open
             if inv ~= 'drop' and inv ~= 'container' then
                 if (data?.id or data) == currentInventory?.id then
                     -- Triggering exports.ox_inventory:openInventory('stash', 'mystash') twice in rapid succession is weird behaviour
                     return warn(("script tried to open inventory, but it is already open\n%s"):format(Citizen
                         .InvokeNative(`FORMAT_STACK_TRACE` & 0xFFFFFFFF, nil, 0, Citizen.ResultAsString())))
-                else
-                    return client.closeInventory()
+                -- Don't close if opening a different inventory type (allow stacking)
+                -- else
+                --     return client.closeInventory()
                 end
             end
         end
@@ -257,7 +261,7 @@ function client.openInventory(inv, data)
         return exports['sandbox-hud']:Notification("error", locale('inventory_player_access'))
     end
 
-    local left, right, accessError
+    local left, right, container, accessError
 
     if inv == 'player' and data ~= cache.serverId then
         local targetId, targetPed, serverId
@@ -342,7 +346,12 @@ function client.openInventory(inv, data)
             end
         end
 
-        left, right, accessError = lib.callback.await('ox_inventory:openInventory', false, inv, data)
+        left, right, container = lib.callback.await('ox_inventory:openInventory', false, inv, data)
+        -- Handle old format where third value might be accessError string
+        if type(container) == 'string' then
+            accessError = container
+            container = nil
+        end
     end
 
     if accessError then
@@ -385,17 +394,40 @@ function client.openInventory(inv, data)
 
     if screenBlurEnabled then Utils.blurIn() end
 
-    currentInventory = right or defaultInventory
     left.items = PlayerData.inventory
     left.groups = PlayerData.groups
 
+    local nuiData = {
+        leftInventory = left
+    }
+
+    -- Set default current inventory
+    currentInventory = right or defaultInventory
+    nuiData.rightInventory = currentInventory
+
+    -- Check for backpack in slot 6 and get its inventory
+    local backpackItem = PlayerData.inventory[6]
+    if backpackItem and backpackItem.name and Backpack.isBackpackItem(backpackItem.name) then
+        -- Get backpack inventory from server
+        local backpackInventory = lib.callback.await('ox_inventory:getBackpackInventory', false, backpackItem.metadata?.backpackId or backpackItem.slot)
+        if backpackInventory then
+            nuiData.containerInventory = backpackInventory
+        end
+    end
+
+    -- If container is provided (old system), override
+    if container then
+        nuiData.containerInventory = container
+        currentInventory = container
+    end
+
     SendNUIMessage({
         action = 'setupInventory',
-        data = {
-            leftInventory = left,
-            rightInventory = currentInventory
-        }
+        data = nuiData
     })
+    
+    -- Store reference to check later
+    client.currentBackpackId = nuiData.containerInventory and nuiData.containerInventory.id or nil
 
     if not currentInventory.coords and not inv == 'container' then
         currentInventory.coords = GetEntityCoords(playerPed)
@@ -1219,7 +1251,49 @@ local function updateInventory(data, weight)
 end
 
 RegisterNetEvent('ox_inventory:updateSlots', function(items, weights)
-    if source ~= '' and next(items) then updateInventory(items, weights) end
+    if source ~= '' and next(items) then 
+        updateInventory(items, weights)
+        
+        -- Check if slot 6 (backpack slot) was updated
+        if invOpen then
+            local slot6Updated = false
+            for i = 1, #items do
+                if items[i].item and items[i].item.slot == 6 then
+                    slot6Updated = true
+                    break
+                end
+            end
+            
+            if slot6Updated then
+                -- Check current backpack status
+                local backpackItem = PlayerData.inventory[6]
+                local hasBackpack = backpackItem and backpackItem.name and Backpack.isBackpackItem(backpackItem.name)
+                
+                if hasBackpack then
+                    -- Backpack equipped - show it
+                    local backpackInventory = lib.callback.await('ox_inventory:getBackpackInventory', false, backpackItem.metadata?.backpackId or backpackItem.slot)
+                    if backpackInventory then
+                        SendNUIMessage({
+                            action = 'setupInventory',
+                            data = {
+                                containerInventory = backpackInventory
+                            }
+                        })
+                        client.currentBackpackId = backpackInventory.id
+                    end
+                else
+                    -- No backpack - hide container
+                    if client.currentBackpackId then
+                        SendNUIMessage({
+                            action = 'setupInventory',
+                            data = {}
+                        })
+                        client.currentBackpackId = nil
+                    end
+                end
+            end
+        end
+    end
 end)
 
 RegisterNetEvent('ox_inventory:inventoryReturned', function(data)
@@ -2126,38 +2200,20 @@ RegisterNUICallback('swapItems', function(data, cb)
 end)
 
 RegisterNUICallback('buyItem', function(data, cb)
-    ---@type boolean, false | { [1]: number, [2]: SlotWithItem, [3]: SlotWithItem | false, [4]: number}, NotifyProps
-    local response, data, message = lib.callback.await('ox_inventory:buyItem', 100, data)
+    -- Disabled: Use shopping cart instead
+    exports['sandbox-hud']:Notification('error', 'Use the shopping cart to purchase items')
+    cb(false)
+end)
 
-    if data then
-        updateInventory({
-            {
-                item = data[2],
-                inventory = cache.serverId
-            }
-        }, data[4])
-
-        if data[3] then
-            SendNUIMessage({
-                action = 'refreshSlots',
-                data = {
-                    items = {
-                        {
-                            item = data[3],
-                            inventory = 'shop'
-                        }
-                    }
-                }
-            })
-        end
-    end
-
+RegisterNUICallback('purchaseItems', function(data, cb)
+    local response, updatedData, message = lib.callback.await('ox_inventory:purchaseItems', 100, data)
+    
     if message then
-        --lib.notify(message)
         exports['sandbox-hud']:Notification(message.type, message.description)
     end
-
-    cb(response)
+    
+    -- Return an object instead of boolean to prevent NUI errors
+    cb({ success = response or false })
 end)
 
 RegisterNUICallback('craftItem', function(data, cb)

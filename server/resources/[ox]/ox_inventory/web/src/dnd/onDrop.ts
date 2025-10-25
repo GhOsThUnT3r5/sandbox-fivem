@@ -20,13 +20,13 @@ export const onDrop = async (source: DragSource, target?: DropTarget) => {
 
   // If dragging from container slot
   if (sourceSlot.metadata?.container !== undefined) {
-    // Prevent storing container in container
-    if (targetInventory.type === InventoryType.CONTAINER)
-      return console.log(`Cannot store container ${sourceSlot.name} inside another container`);
+    // Prevent storing container in container or backpack
+    if (targetInventory.type === InventoryType.CONTAINER || targetInventory.type === InventoryType.BACKPACK)
+      return;
 
     // Prevent dragging of container slot when opened
-    if (state.rightInventory.id === sourceSlot.metadata.container)
-      return console.log(`Cannot move container ${sourceSlot.name} when opened`);
+    if (state.containerInventory.id === sourceSlot.metadata.container || state.rightInventory.id === sourceSlot.metadata.container)
+      return;
   }
 
   const targetSlot = target
@@ -91,8 +91,8 @@ export const onDrop = async (source: DragSource, target?: DropTarget) => {
     }
   }
 
-  if (targetSlot.metadata?.container !== undefined && state.rightInventory.id === targetSlot.metadata.container)
-    return console.log(`Cannot swap item ${sourceSlot.name} with container ${targetSlot.name} when opened`);
+  if (targetSlot.metadata?.container !== undefined && (state.containerInventory.id === targetSlot.metadata.container || state.rightInventory.id === targetSlot.metadata.container))
+    return;
 
   const count =
     state.shiftPressed && sourceSlot.count > 1 && sourceInventory.type !== 'shop'
@@ -141,6 +141,6 @@ export const onDrop = async (source: DragSource, target?: DropTarget) => {
       audio.play();
     }
   } catch (error) {
-    console.log('Audio creation failed:', error);
+    // Audio creation failed
   }
 };

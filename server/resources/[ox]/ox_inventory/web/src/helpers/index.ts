@@ -126,16 +126,24 @@ export const getTargetInventory = (
   targetType?: Inventory['type']
 ): { sourceInventory: Inventory; targetInventory: Inventory } => {
   const isLeftInventory = sourceType === InventoryType.PLAYER || sourceType === 'utility';
+  const isContainerInventory = sourceType === InventoryType.CONTAINER || sourceType === InventoryType.BACKPACK;
   const isTargetLeftInventory = targetType === InventoryType.PLAYER || targetType === 'utility';
+  const isTargetContainerInventory = targetType === InventoryType.CONTAINER || targetType === InventoryType.BACKPACK;
+
+  const getInventory = (type: Inventory['type'] | undefined, isLeft: boolean, isContainer: boolean) => {
+    if (isLeft) return state.leftInventory;
+    if (isContainer) return state.containerInventory;
+    return state.rightInventory;
+  };
 
   return {
-    sourceInventory: isLeftInventory ? state.leftInventory : state.rightInventory,
+    sourceInventory: getInventory(sourceType, isLeftInventory, isContainerInventory),
     targetInventory: targetType
-      ? isTargetLeftInventory
-        ? state.leftInventory
-        : state.rightInventory
+      ? getInventory(targetType, isTargetLeftInventory, isTargetContainerInventory)
       : isLeftInventory
       ? state.rightInventory
+      : isContainerInventory
+      ? state.leftInventory
       : state.leftInventory,
   };
 };

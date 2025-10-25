@@ -5,7 +5,7 @@ import { getTotalWeight } from '../../helpers';
 import { useAppSelector } from '../../store';
 import { useIntersection } from '../../hooks/useIntersection';
 
-const PAGE_SIZE = 30;
+const PAGE_SIZE = 16;
 
 const InventoryGrid: React.FC<{
   inventory: Inventory;

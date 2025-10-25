@@ -34,13 +34,13 @@ const SlotTooltip: React.ForwardRefRenderFunction<
     };
 
     const rarityColors = {
-      1: 'hsl(0, 0%, 70%)', // Common
-      2: 'hsl(120, 60%, 50%)', // Uncommon
-      3: 'hsl(210, 70%, 55%)', // Rare
-      4: 'hsl(280, 70%, 60%)', // Epic
-      5: 'hsl(45, 80%, 55%)', // Objective
-      6: 'hsl(30, 80%, 55%)', // Legendary
-      7: 'hsl(180, 70%, 60%)', // Exotic
+      1: 'rgba(150, 150, 150, 1)', // Common - Gray
+      2: 'rgba(100, 150, 255, 1)', // Uncommon - Blue
+      3: 'rgba(150, 100, 255, 1)', // Rare - Purple
+      4: 'rgba(255, 215, 0, 1)', // Epic - Gold
+      5: 'rgba(255, 215, 0, 1)', // Objective - Gold
+      6: 'rgba(255, 100, 100, 1)', // Legendary - Red
+      7: 'rgba(128, 0, 32, 1)', // Exotic - Burgundy
     };
 
     return {
@@ -207,6 +207,11 @@ const SlotTooltip: React.ForwardRefRenderFunction<
               {item.metadata?.serial && (
                 <p>
                   {Locale.ui_serial}: {item.metadata.serial}
+                </p>
+              )}
+              {item.metadata?.backpackId && (
+                <p style={{ fontSize: '0.85em', opacity: 0.8 }}>
+                  Backpack ID: {item.metadata.backpackId}
                 </p>
               )}
               {item.metadata?.components && item.metadata?.components[0] && (

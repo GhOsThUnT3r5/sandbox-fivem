@@ -274,6 +274,13 @@ end)
 
 local function loadPlayerInv(src, newPlayer)
     local char = exports['sandbox-characters']:FetchCharacterSource(src)
+    
+    -- Check if character is loaded
+    if not char then
+        print(('[ox_inventory] Character not loaded yet for player %s, skipping inventory load'):format(src))
+        return
+    end
+    
     local id = char:GetData('SID')
     local cash = char:GetData('Cash')
     local name = string.format('%s %s', char:GetData("First"), char:GetData("Last"))

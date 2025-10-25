@@ -20,7 +20,13 @@ function OxInventory:openInventory(inv)
 
     inv:set('open', true)
     inv.openedBy[self.id] = true
-    self.open = inv.id
+    
+    -- Track container separately from other inventories
+    if inv.type == 'container' then
+        self.containerOpen = inv.id
+    else
+        self.open = inv.id
+    end
 
     TriggerEvent('ox_inventory:openedInventory', self.id, inv.id)
 end
@@ -28,17 +34,26 @@ end
 ---Close a player's inventory.
 ---@param noEvent? boolean
 function OxInventory:closeInventory(noEvent)
-    if not self.player or not self.open then return end
+    if not self.player then return end
+    
+    if not self.open and not self.containerOpen then return end
 
-    local inv = Inventory(self.open)
+    -- Close both container and regular inventory
+    local inv = Inventory(self.open) or Inventory(self.containerOpen)
 
     if not inv then return end
 
     inv.openedBy[self.id] = nil
     inv:set('open', false)
-    self.open = false
-    self.currentShop = nil
-    self.containerSlot = nil
+    
+    -- Clear appropriate reference
+    if inv.type == 'container' then
+        self.containerOpen = false
+        self.containerSlot = nil
+    else
+        self.open = false
+        self.currentShop = nil
+    end
 
     if not noEvent then
         TriggerClientEvent('ox_inventory:closeInventory', self.id, true)
@@ -1791,8 +1806,32 @@ lib.callback.register('ox_inventory:swapItems', function(source, data)
 
     if not playerInventory then return end
 
-    local toInventory = (data.toType == 'player' and playerInventory) or Inventory(playerInventory.open)
-    local fromInventory = (data.fromType == 'player' and playerInventory) or Inventory(playerInventory.open)
+    -- Prevent drag and drop from shop - use cart system instead
+    if data.fromType == 'shop' then
+        return false, { type = 'error', description = 'Use the shopping cart to purchase items' }
+    end
+
+    -- Get correct inventory based on type
+    local function getInventoryByType(invType)
+        if invType == 'player' then
+            return playerInventory
+        elseif invType == 'backpack' then
+            -- Get backpack from slot 6
+            local backpackItem = playerInventory.items[6]
+            if backpackItem and backpackItem.metadata?.backpackId then
+                return Inventory(backpackItem.metadata.backpackId)
+            end
+            return nil
+        elseif invType == 'container' then
+            -- Old container system
+            return Inventory(playerInventory.containerOpen)
+        else
+            return Inventory(playerInventory.open)
+        end
+    end
+    
+    local toInventory = getInventoryByType(data.toType)
+    local fromInventory = getInventoryByType(data.fromType)
 
     if not fromInventory or not toInventory then
         playerInventory:closeInventory()

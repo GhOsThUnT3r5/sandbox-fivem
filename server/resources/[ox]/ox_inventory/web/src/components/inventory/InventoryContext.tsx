@@ -7,10 +7,10 @@ import { Locale } from '../../store/locale';
 import { isSlotWithItem, findAvailableSlot } from '../../helpers';
 import { setClipboard } from '../../utils/setClipboard';
 import { useAppSelector } from '../../store';
-import React from 'react';
+import React, { useState } from 'react';
 import { Menu, MenuItem } from '../utils/menu/Menu';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCopy, faHammer, faHandHolding, faTrash, faHandPointUp } from '@fortawesome/free-solid-svg-icons';
+import { faCopy, faHammer, faHandHolding, faTrash, faHandPointUp, faCut } from '@fortawesome/free-solid-svg-icons';
 import { IconProp } from '@fortawesome/fontawesome-svg-core';
 
 interface DataProps {
@@ -43,6 +43,8 @@ const InventoryContext: React.FC = () => {
   const contextMenu = useAppSelector((state) => state.contextMenu);
   const item = contextMenu.item;
   const leftInventory = useAppSelector((state) => state.inventory.leftInventory);
+  const [showSplitDialog, setShowSplitDialog] = useState(false);
+  const [splitAmount, setSplitAmount] = useState(1);
 
   const canDropItem = () => {
     if (!item || !isSlotWithItem(item)) return false;
@@ -54,7 +56,6 @@ const InventoryContext: React.FC = () => {
       const availableSlot = findAvailableSlot(item, itemData, leftInventory.items, 'player');
       return availableSlot !== undefined;
     } catch (error) {
-      console.log('Error checking available slots:', error);
       return false;
     }
   };
@@ -74,6 +75,9 @@ const InventoryContext: React.FC = () => {
           onDrop({ item: item, inventory: 'player' });
         }
         break;
+      case 'split':
+        setShowSplitDialog(true);
+        break;
       case 'remove':
         fetchNui('removeComponent', { component: data?.component, slot: data?.slot });
         break;
@@ -86,6 +90,33 @@ const InventoryContext: React.FC = () => {
       case 'custom':
         fetchNui('useButton', { id: (data?.id || 0) + 1, slot: item.slot });
         break;
+    }
+  };
+
+  const handleSplit = async () => {
+    if (!item || !isSlotWithItem(item)) return;
+    
+    try {
+      // Find an empty slot in main inventory (slots 10+), not utility slots (1-9)
+      const emptySlot = leftInventory.items.findIndex((slot, index) => !slot.name && index >= 9);
+      if (emptySlot === -1) {
+        setShowSplitDialog(false);
+        return;
+      }
+
+      // Call backend to split the item
+      await fetchNui('swapItems', {
+        fromSlot: item.slot,
+        fromType: 'player',
+        toSlot: emptySlot + 1,
+        toType: 'player',
+        count: splitAmount,
+      });
+      
+      setShowSplitDialog(false);
+      setSplitAmount(1);
+    } catch (error) {
+      setShowSplitDialog(false);
     }
   };
 
@@ -130,6 +161,13 @@ const InventoryContext: React.FC = () => {
           icon={<FontAwesomeIcon icon={faTrash} />}
           disabled={!canDropItem()}
         />
+        {item && isSlotWithItem(item) && item.count && item.count > 1 && (
+          <MenuItem
+            onClick={() => handleClick({ action: 'split' })}
+            label={Locale.ui_split || 'Split'}
+            icon={<FontAwesomeIcon icon={faCut} />}
+          />
+        )}
         {item && item.metadata?.ammo > 0 && (
           <MenuItem
             onClick={() => handleClick({ action: 'removeAmmo' })}
@@ -189,6 +227,42 @@ const InventoryContext: React.FC = () => {
           </>
         )}
       </Menu>
+      {showSplitDialog && item && isSlotWithItem(item) && (
+        <div className="split-dialog-overlay" onClick={() => setShowSplitDialog(false)}>
+          <div className="split-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="split-dialog-header">
+              <h3>{Locale.ui_split || 'Split'} {Items[item.name]?.label || item.name}</h3>
+            </div>
+            <div className="split-dialog-content">
+              <p>Amount: {splitAmount} / {item.count}</p>
+              <input
+                type="range"
+                min="1"
+                max={item.count - 1}
+                value={splitAmount}
+                onChange={(e) => setSplitAmount(parseInt(e.target.value))}
+                className="split-slider"
+              />
+              <input
+                type="number"
+                min="1"
+                max={item.count - 1}
+                value={splitAmount}
+                onChange={(e) => setSplitAmount(Math.min(Math.max(1, parseInt(e.target.value) || 1), item.count - 1))}
+                className="split-input"
+              />
+            </div>
+            <div className="split-dialog-actions">
+              <button onClick={() => setShowSplitDialog(false)} className="split-button split-cancel">
+                Cancel
+              </button>
+              <button onClick={handleSplit} className="split-button split-confirm">
+                Split
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

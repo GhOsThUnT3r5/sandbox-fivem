@@ -375,7 +375,8 @@ exports("OwnedAdd",
                 Fuel = math.random(90, 100),
                 OwnerType = ownerData.Type,
                 OwnerId = ownerData.Id,
-                OwnerWorkplace = ownerData.Workplace,
+                OwnerWorkplace = ownerData.Workplace and ownerData.Workplace or nil,
+                OwnerLevel = ownerData.Level or 0,
                 StorageType = storageData and storageData.Type or 0,
                 StorageId = storageData and storageData.Id or 0,
                 Make = infoData.make or 'Unknown',
@@ -391,11 +392,11 @@ exports("OwnedAdd",
             }
 
             local success = MySQL.insert.await(
-                "INSERT INTO vehicles (VIN, Type, Make, Model, RegisteredPlate, OwnerType, OwnerId, OwnerWorkplace, StorageType, StorageId, " ..
+                "INSERT INTO vehicles (VIN, Type, Make, Model, RegisteredPlate, OwnerType, OwnerId, OwnerWorkplace, OwnerLevel, StorageType, StorageId, " ..
                 "FirstSpawn, Mileage, Fuel, DirtLevel, Value, Class, Vehicle, FakePlate, RegistrationDate, " ..
                 "Damage, DamagedParts, Polish, PurgeColor, PurgeLocation, Harness, Nitrous, NeonsDisabled, " ..
                 "WheelFitment, Donator, Seized, SeizedTime, Properties, Created, LastSave) " ..
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?), FROM_UNIXTIME(?))",
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?), FROM_UNIXTIME(?))",
                 {
                     VIN,
                     vehicleType,
@@ -404,7 +405,8 @@ exports("OwnedAdd",
                     plate or '',
                     ownerData.Type,
                     ownerData.Id,
-                    ownerData.Workplace,
+                    ownerData.Workplace and ownerData.Workplace or nil,
+                    ownerData.Level or 0,
                     storageData and storageData.Type or 0,
                     storageData and storageData.Id or 0,
                     doc.FirstSpawn or false,
@@ -554,11 +556,18 @@ exports("OwnedGetAll",
         end
 
         if checkFleetOwner and checkFleetOwner.Id then
-            table.insert(whereConditions,
-                "(OwnerType = 1 AND OwnerId = ? AND (OwnerWorkplace = ? OR OwnerWorkplace IS NULL) AND OwnerLevel <= ?)")
-            table.insert(params, checkFleetOwner.Id)
-            table.insert(params, checkFleetOwner.Workplace or false)
-            table.insert(params, type(checkFleetOwner.Level) == 'number' and checkFleetOwner.Level or 0)
+            if checkFleetOwner.Workplace and checkFleetOwner.Workplace ~= false then
+                table.insert(whereConditions,
+                    "(OwnerType = 1 AND OwnerId = ? AND (OwnerWorkplace = ? OR OwnerWorkplace IS NULL) AND OwnerLevel <= ?)")
+                table.insert(params, checkFleetOwner.Id)
+                table.insert(params, checkFleetOwner.Workplace)
+                table.insert(params, type(checkFleetOwner.Level) == 'number' and checkFleetOwner.Level or 0)
+            else
+                table.insert(whereConditions,
+                    "(OwnerType = 1 AND OwnerId = ? AND OwnerLevel <= ?)")
+                table.insert(params, checkFleetOwner.Id)
+                table.insert(params, type(checkFleetOwner.Level) == 'number' and checkFleetOwner.Level or 0)
+            end
         end
 
         if storageType ~= nil and storageId ~= nil then
@@ -1162,11 +1171,11 @@ function GenerateLocalVehicleInfo(entity)
     end
 
     local entityType = GetEntityType(entity)
-    local populationType = GetEntityPopulationType(entity)
 
-    if entityType == 2 and (populationType == 2 or populationType == 3 or populationType == 5) then
+    -- Generate VIN for all vehicles (type 2), regardless of population type
+    if entityType == 2 then
         local veh = Entity(entity)
-        if not veh.state.VIN then -- Has Not Yet Been Detected/Initialised
+        if not veh.state.VIN then
             veh.state.VIN = exports['sandbox-vehicles']:VINGenerateLocal()
             veh.state.Owned = false
             veh.state.Hotwired = false
@@ -1182,9 +1191,21 @@ AddEventHandler("Vehicles:Server:GenerateVehicleInfo", GenerateLocalVehicleInfo)
 
 -- Generate Vehicle Info on Client Request
 RegisterNetEvent("Vehicles:Server:RequestGenerateVehicleInfo", function(vNet)
-    local src = source
     local veh = NetworkGetEntityFromNetworkId(vNet)
     GenerateLocalVehicleInfo(veh)
+end)
+
+-- Lua 5.4 compatibility: Auto-generate VIN for all created vehicles
+AddEventHandler('entityCreating', function(entity)
+    -- Only process vehicles
+    if GetEntityType(entity) == 2 then
+        -- Wait for entity to fully exist before generating info
+        SetTimeout(100, function()
+            if DoesEntityExist(entity) then
+                GenerateLocalVehicleInfo(entity)
+            end
+        end)
+    end
 end)
 
 function ApplyOldVehicleState(veh, fuel, damage, damagedParts, mileage, engineHealth, bodyHealth, isBlownUp,

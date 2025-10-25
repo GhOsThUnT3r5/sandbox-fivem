@@ -211,19 +211,54 @@ lib.callback.register('ox_inventory:openShop', function(source, data)
         shop
 end)
 
-local function canAffordItem(inv, currency, price)
-    local canAfford = price >= 0 and Inventory.GetItemCount(inv, currency) >= price
+local function canAffordItem(inv, currency, price, source)
+    local canAfford = false
+    local currencyLabel
+    
+    if currency == 'money' then
+        canAfford = price >= 0 and Inventory.GetItemCount(inv, currency) >= price
+        currencyLabel = locale('$') .. math.groupdigits(price)
+    elseif currency == 'bank' then
+        -- Use sandbox-finance system for bank money
+        local char = exports['sandbox-characters']:FetchCharacterSource(source)
+        if char then
+            local bankAccount = exports['sandbox-finance']:AccountsGetPersonal(char:GetData("SID"))
+            if bankAccount then
+                canAfford = bankAccount.Balance >= price
+            end
+        end
+        currencyLabel = locale('$') .. math.groupdigits(price)
+    else
+        canAfford = price >= 0 and Inventory.GetItemCount(inv, currency) >= price
+        local item = Items(currency)
+        currencyLabel = math.groupdigits(price) .. ' ' .. (item and item.label or currency)
+    end
 
     return canAfford or {
         type = 'error',
-        description = locale('cannot_afford',
-            ('%s%s'):format((currency == 'money' and locale('$') or math.groupdigits(price)),
-                (currency == 'money' and math.groupdigits(price) or ' ' .. Items(currency).label)))
+        description = locale('cannot_afford', currencyLabel)
     }
 end
 
-local function removeCurrency(inv, currency, price)
-    Inventory.RemoveItem(inv, currency, price)
+local function removeCurrency(inv, currency, price, source)
+    if currency == 'money' then
+        Inventory.RemoveItem(inv, currency, price)
+    elseif currency == 'bank' then
+        -- Use sandbox-finance system for bank money
+        local char = exports['sandbox-characters']:FetchCharacterSource(source)
+        if char then
+            local bankAccount = exports['sandbox-finance']:AccountsGetPersonal(char:GetData("SID"))
+            if bankAccount then
+                exports['sandbox-finance']:BalanceWithdraw(bankAccount.Account, price, {
+                    type = 'purchase',
+                    title = "Shop Purchase",
+                    description = "Purchased items from shop"
+                })
+            end
+        end
+    else
+        Inventory.RemoveItem(inv, currency, price)
+    end
 end
 
 local TriggerEventHooks = require 'modules.hooks.server'
@@ -242,6 +277,9 @@ local function isRequiredGrade(grade, rank)
 end
 
 lib.callback.register('ox_inventory:buyItem', function(source, data)
+    -- Disabled: Use shopping cart instead
+    return false, false, { type = 'error', description = 'Use the shopping cart to purchase items' }
+    --[[
     if data.toType == 'player' then
         if data.count == nil then data.count = 1 end
 
@@ -356,7 +394,7 @@ lib.callback.register('ox_inventory:buyItem', function(source, data)
 
                 Inventory.SetSlot(playerInv, fromItem, count, metadata, data.toSlot)
                 playerInv.weight = newWeight
-                removeCurrency(playerInv, currency, price)
+                removeCurrency(playerInv, currency, price, source)
 
                 if fromData.count then
                     shop.items[data.fromSlot].count = fromData.count - count
@@ -383,6 +421,210 @@ lib.callback.register('ox_inventory:buyItem', function(source, data)
             return false, false, { type = 'error', description = locale('unable_stack_items') }
         end
     end
+    ]]--
+end)
+
+lib.callback.register('ox_inventory:purchaseItems', function(source, data)
+    local playerInv = Inventory(source)
+    
+    if not playerInv or not playerInv.currentShop then 
+        return false, false, { type = 'error', description = 'No shop open' }
+    end
+    
+    local shopType, shopId = playerInv.currentShop:match('^(.-) (%d-)$')
+    if not shopType then shopType = playerInv.currentShop end
+    if shopId then shopId = tonumber(shopId) end
+    
+    local shop = shopId and Shops[shopType][shopId] or Shops[shopType]
+    if not shop then
+        return false, false, { type = 'error', description = 'Shop not found' }
+    end
+    
+    local items = data.items or {}
+    if #items == 0 then
+        return false, false, { type = 'error', description = 'No items to purchase' }
+    end
+    
+    local paymentMethod = data.paymentMethod or 'cash'
+    
+    -- Calculate total price and verify all items
+    local totalPrice = 0
+    local currency = nil
+    local purchaseData = {}
+    
+    for i = 1, #items do
+        local cartItem = items[i]
+        local shopItem = shop.items[cartItem.slot]
+        
+        if not shopItem or shopItem.name ~= cartItem.name then
+            return false, false, { type = 'error', description = 'Invalid item in cart' }
+        end
+        
+        if shopItem.count and shopItem.count < cartItem.count then
+            return false, false, { type = 'error', description = locale('shop_nostock') }
+        end
+        
+        -- Check licenses, qualifications, jobs, grades for each item
+        if shopItem.license and server.hasLicense then
+            local hasRequiredLicense = false
+            if type(shopItem.license) == 'table' then
+                hasRequiredLicense = true
+                for j = 1, #shopItem.license do
+                    if not server.hasLicense(source, shopItem.license[j]) then
+                        hasRequiredLicense = false
+                        break
+                    end
+                end
+            else
+                hasRequiredLicense = server.hasLicense(source, shopItem.license)
+            end
+            
+            if not hasRequiredLicense then
+                return false, false, { type = 'error', description = locale('item_unlicensed') }
+            end
+        end
+        
+        if shopItem.qualification and server.hasQualification and not server.hasQualification(source, shopItem.qualification) then
+            return false, false, { type = 'error', description = locale('item_unqualified') }
+        end
+        
+        if shopItem.job then
+            local hasJob = playerInv and playerInv.player and playerInv.player.groups and playerInv.player.groups[shopItem.job]
+            if not hasJob then
+                return false, false, { type = 'error', description = ('You need to be employed at %s to purchase this item'):format(shopItem.job) }
+            end
+        end
+        
+        if shopItem.grade then
+            local _, rank = server.hasGroup(playerInv, shop.groups)
+            if not isRequiredGrade(shopItem.grade, rank) then
+                return false, false, { type = 'error', description = locale('stash_lowgrade') }
+            end
+        end
+        
+        local itemCurrency = shopItem.currency or 'money'
+        if currency and currency ~= itemCurrency then
+            return false, false, { type = 'error', description = 'Cannot mix payment methods' }
+        end
+        currency = itemCurrency
+        
+        local itemPrice = cartItem.count * shopItem.price
+        totalPrice = totalPrice + itemPrice
+        
+        purchaseData[i] = {
+            shopItem = shopItem,
+            cartItem = cartItem,
+            item = Items(shopItem.name)
+        }
+    end
+    
+    -- Check if player can afford total (use correct payment method)
+    local checkCurrency = currency
+    if paymentMethod == 'bank' and currency == 'money' then
+        checkCurrency = 'bank'
+    end
+    
+    -- Debug logging
+    print(string.format("^3[SHOP DEBUG] Payment Method: %s, Currency: %s, Check Currency: %s, Price: %d^0", 
+        paymentMethod, currency, checkCurrency, totalPrice))
+    
+    if checkCurrency == 'bank' then
+        local char = exports['sandbox-characters']:FetchCharacterSource(source)
+        if char then
+            local bankAccount = exports['sandbox-finance']:AccountsGetPersonal(char:GetData("SID"))
+            if bankAccount then
+                print(string.format("^3[SHOP DEBUG] Player has %d bank money^0", bankAccount.Balance))
+            else
+                print("^3[SHOP DEBUG] No bank account found^0")
+            end
+        else
+            print("^3[SHOP DEBUG] No character found^0")
+        end
+    else
+        print(string.format("^3[SHOP DEBUG] Player has %d %s^0", 
+            Inventory.GetItemCount(playerInv, checkCurrency), checkCurrency))
+    end
+    
+    local canAfford = canAffordItem(playerInv, checkCurrency, totalPrice, source)
+    if canAfford ~= true then
+        return false, false, canAfford
+    end
+    
+    -- Check weight
+    local totalWeight = playerInv.weight
+    for i = 1, #purchaseData do
+        local pd = purchaseData[i]
+        local metadata = Items.Metadata(playerInv, pd.item, pd.shopItem.metadata and table.clone(pd.shopItem.metadata) or {}, pd.cartItem.count)
+        totalWeight = totalWeight + (pd.item.weight + (metadata?.weight or 0)) * pd.cartItem.count
+    end
+    
+    if totalWeight > playerInv.maxWeight then
+        return false, false, { type = 'error', description = locale('cannot_carry') }
+    end
+    
+    -- All checks passed, proceed with purchase
+    -- Use the selected payment method (cash or bank)
+    local actualCurrency = currency
+    if paymentMethod == 'bank' then
+        -- If paying with bank, override currency to use bank account
+        if currency == 'money' then
+            actualCurrency = 'bank' -- Use bank instead of cash
+        end
+    end
+    
+    removeCurrency(playerInv, actualCurrency, totalPrice, source)
+    
+    local shopItems = {}
+    
+    for i = 1, #purchaseData do
+        local pd = purchaseData[i]
+        local metadata = Items.Metadata(playerInv, pd.item, pd.shopItem.metadata and table.clone(pd.shopItem.metadata) or {}, pd.cartItem.count)
+        
+        TriggerEventHooks('buyItem', {
+            source = source,
+            shopType = shopType,
+            shopId = shopId,
+            toInventory = playerInv.id,
+            fromSlot = pd.shopItem,
+            itemName = pd.shopItem.name,
+            metadata = metadata,
+            count = pd.cartItem.count,
+            price = pd.shopItem.price,
+            totalPrice = pd.cartItem.count * pd.shopItem.price,
+            currency = actualCurrency,
+        })
+        
+        -- Add item to player inventory
+        local slot, count = Inventory.AddItem(playerInv, pd.item.name, pd.cartItem.count, metadata)
+        
+        if not slot then
+            return false, false, { type = 'error', description = 'No inventory space available' }
+        end
+        
+        -- Update shop stock
+        if pd.shopItem.count then
+            shop.items[pd.cartItem.slot].count = pd.shopItem.count - pd.cartItem.count
+            shopItems[#shopItems + 1] = {
+                item = shop.items[pd.cartItem.slot],
+                inventory = 'shop'
+            }
+        end
+    end
+    
+    if server.syncInventory then server.syncInventory(playerInv) end
+    
+    local itemsText = #items > 1 and #items .. ' items' or '1 item'
+    local priceText = (actualCurrency == 'money' or actualCurrency == 'bank') and ('$' .. math.groupdigits(totalPrice)) or (math.groupdigits(totalPrice) .. ' ' .. actualCurrency)
+    local message = 'Purchased ' .. itemsText .. ' for ' .. priceText
+    
+    if server.loglevel > 0 and totalPrice >= 500 then
+        lib.logger(playerInv.owner, 'purchaseItems', ('"%s" %s'):format(playerInv.label, message:lower()),
+            ('shop:%s'):format(shop.label))
+    end
+    
+    return true, {
+        shopItems = shopItems
+    }, { type = 'success', description = message }
 end)
 
 server.shops = Shops

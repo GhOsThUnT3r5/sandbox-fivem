@@ -8,6 +8,7 @@ import { useExitListener } from '../../hooks/useExitListener';
 import type { Inventory as InventoryProps } from '../../typings';
 import RightInventory from './RightInventory';
 import LeftInventory from './LeftInventory';
+import ContainerInventory from './ContainerInventory';
 import UtilityInventory from './UtilityInventory';
 import SectionIndicator from './SectionIndicator';
 import CloseButton from './CloseButton';
@@ -19,6 +20,7 @@ import Fade from '../utils/transitions/Fade';
 import { useAppSelector } from '../../store';
 import { selectCurrentView, selectRightInventory } from '../../store/inventory';
 import CraftingInventory from './CraftingInventory';
+import ShoppingCart from './ShoppingCart';
 
 const Inventory: React.FC = () => {
   const [inventoryVisible, setInventoryVisible] = useState(false);
@@ -36,6 +38,7 @@ const Inventory: React.FC = () => {
 
   useNuiEvent<{
     leftInventory?: InventoryProps;
+    containerInventory?: InventoryProps;
     rightInventory?: InventoryProps;
   }>('setupInventory', (data) => {
     dispatch(setupInventory(data));
@@ -54,17 +57,23 @@ const Inventory: React.FC = () => {
       <Fade in={inventoryVisible}>
         <div className="inventory-wrapper">
           <CloseButton />
-          <LeftInventory />
+          <div className="left-panel">
+            <LeftInventory />
+            <ContainerInventory />
+          </div>
           <InventoryControl />
-          {rightInventory.type === 'crafting' && currentView === 'normal' ? (
-            <CraftingInventory />
-          ) : rightInventory.type === 'crafting' && currentView === 'utility' ? (
-            <UtilityInventory />
-          ) : currentView === 'normal' ? (
-            <RightInventory />
-          ) : (
-            <UtilityInventory />
-          )}
+          <div className="right-panel">
+            {rightInventory.type === 'crafting' && currentView === 'normal' ? (
+              <CraftingInventory />
+            ) : rightInventory.type === 'crafting' && currentView === 'utility' ? (
+              <UtilityInventory />
+            ) : currentView === 'normal' ? (
+              <RightInventory />
+            ) : (
+              <UtilityInventory />
+            )}
+            {rightInventory.type === 'shop' && currentView === 'normal' && <ShoppingCart />}
+          </div>
           <SectionIndicator />
           <Tooltip />
           <InventoryContext />

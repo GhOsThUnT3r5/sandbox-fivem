@@ -201,6 +201,15 @@ function Items.Metadata(inv, item, metadata, count)
             metadata.container = metadata.container or GenerateText(3) .. os.time()
             metadata.size = container.size
             metadata.items = container.items or nil
+            
+            -- Generate unique backpack ID for backpack items
+            local backpackItems = {backpack = true, large_backpack = true, military_backpack = true}
+            if backpackItems[item.name] and not metadata.backpackId then
+                -- Generate readable ID format: BP-PLAYERID-TIMESTAMP
+                local playerId = inv.id or 'unknown'
+                local timestamp = os.time()
+                metadata.backpackId = ('BP-%s-%s'):format(playerId, timestamp)
+            end
         elseif not next(metadata) then
             if item.name == 'govid' then
                 count = 1
